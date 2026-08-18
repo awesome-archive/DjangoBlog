@@ -1,32 +1,25 @@
-#!/usr/bin/env python
-# encoding: utf-8
+from django.core.management.base import BaseCommand
 
-
-"""
-@version: ??
-@author: liangliangyy
-@license: MIT Licence
-@contact: liangliangyy@gmail.com
-@site: https://www.lylinux.org/
-@software: PyCharm
-@file: ping_baidu.py
-@time: 2017/1/17 下午15:29
-"""
-
-from django.core.management.base import BaseCommand, CommandError
+from djangoblog.spider_notify import SpiderNotify
+from djangoblog.utils import get_current_site
 from blog.models import Article, Tag, Category
-from DjangoBlog.spider_notify import SpiderNotify
-from django.contrib.sites.models import Site
 
-site = Site.objects.get_current().domain
+site = get_current_site().domain
 
 
 class Command(BaseCommand):
     help = 'notify baidu url'
 
     def add_arguments(self, parser):
-        parser.add_argument('data_type', type=str, choices=['all', 'article', 'tag', 'category'],
-                            help='article : all article,tag : all tag,category: all category,all: All of these')
+        parser.add_argument(
+            'data_type',
+            type=str,
+            choices=[
+                'all',
+                'article',
+                'tag',
+                'category'],
+            help='article : all article,tag : all tag,category: all category,all: All of these')
 
     def get_full_url(self, path):
         url = "https://{site}{path}".format(site=site, path=path)
@@ -49,6 +42,9 @@ class Command(BaseCommand):
                 url = category.get_absolute_url()
                 urls.append(self.get_full_url(url))
 
-        self.stdout.write(self.style.SUCCESS('start notify %d urls' % len(urls)))
+        self.stdout.write(
+            self.style.SUCCESS(
+                'start notify %d urls' %
+                len(urls)))
         SpiderNotify.baidu_notify(urls)
         self.stdout.write(self.style.SUCCESS('finish notify'))

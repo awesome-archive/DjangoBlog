@@ -1,21 +1,48 @@
-from django.shortcuts import render
-
+import logging
 # Create your views here.
+from urllib.parse import urlparse
 
 from django.conf import settings
-from django.http import HttpResponse, HttpResponseRedirect
 from django.contrib.auth import get_user_model
-from .models import OAuthUser
 from django.contrib.auth import login
-from django.shortcuts import get_object_or_404
-from django.views.generic import FormView, RedirectView
-from oauth.forms import RequireEmailForm
-from django.core.urlresolvers import reverse
-from DjangoBlog.utils import send_email, get_md5
-from django.contrib.sites.models import Site
 from django.core.exceptions import ObjectDoesNotExist
+from django.db import transaction
 from django.http import HttpResponseForbidden
-from .oauthmanager import get_manager_by_type
+from django.http import HttpResponseRedirect
+from django.shortcuts import get_object_or_404
+from django.shortcuts import render
+from django.urls import reverse
+from django.utils import timezone
+from django.utils.translation import gettext_lazy as _
+from django.views.generic import FormView
+from django.utils.http import url_has_allowed_host_and_scheme
+
+from djangoblog.blog_signals import oauth_user_login_signal
+from djangoblog.utils import get_current_site
+from djangoblog.utils import send_email, get_sha256
+from oauth.forms import RequireEmailForm
+from .models import OAuthUser
+from .oauthmanager import get_manager_by_type, OAuthAccessTokenException
+
+logger = logging.getLogger(__name__)
+
+
+def get_redirecturl(request):
+    nexturl = request.GET.get('next_url', None)
+    if not nexturl or nexturl == '/login/' or nexturl == '/login':
+        return '/'
+
+    # Only allow relative URLs or URLs pointing to the current host
+    site_domain = get_current_site().domain
+    if url_has_allowed_host_and_scheme(
+        url=nexturl,
+        allowed_hosts={site_domain},
+        require_https=request.is_secure()
+    ):
+        return nexturl
+
+    logger.info('非法url:' + str(nexturl))
+    return '/'
 
 
 def oauthlogin(request):
@@ -25,16 +52,12 @@ def oauthlogin(request):
     manager = get_manager_by_type(type)
     if not manager:
         return HttpResponseRedirect('/')
-    nexturl = request.GET.get('next_url', None)
-    print(nexturl)
-    if not nexturl or nexturl == '/login/':
-        nexturl = '/'
+    nexturl = get_redirecturl(request)
     authorizeurl = manager.get_authorization_url(nexturl)
     return HttpResponseRedirect(authorizeurl)
 
 
 def authorize(request):
-    manager = None
     type = request.GET.get('type', None)
     if not type:
         return HttpResponseRedirect('/')
@@ -42,50 +65,72 @@ def authorize(request):
     if not manager:
         return HttpResponseRedirect('/')
     code = request.GET.get('code', None)
-    rsp = manager.get_access_token_by_code(code)
-    nexturl = request.GET.get('next_url', None)
-    if not nexturl:
-        nexturl = '/'
+    try:
+        rsp = manager.get_access_token_by_code(code)
+    except OAuthAccessTokenException as e:
+        logger.warning("OAuthAccessTokenException:" + str(e))
+        return HttpResponseRedirect('/')
+    except Exception as e:
+        logger.error(e)
+        rsp = None
+    nexturl = get_redirecturl(request)
     if not rsp:
         return HttpResponseRedirect(manager.get_authorization_url(nexturl))
     user = manager.get_oauth_userinfo()
-
     if user:
-        if not user.nikename:
-            import datetime
-            user.nikename = "djangoblog" + datetime.datetime.now().strftime('%Y%m%f%H%m%s')
+        if not user.nickname or not user.nickname.strip():
+            user.nickname = "djangoblog" + timezone.now().strftime('%y%m%d%I%M%S')
         try:
-            token = user.token
-            user = OAuthUser.objects.get(type=type, openid=user.openid)
-            if token:
-                user.token = token
+            temp = OAuthUser.objects.get(type=type, openid=user.openid)
+            temp.picture = user.picture
+            temp.metadata = user.metadata
+            temp.nickname = user.nickname
+            user = temp
         except ObjectDoesNotExist:
             pass
-        email = user.email
-        if email:
-            author = None
-            try:
-                author = get_user_model().objects.get(id=user.author_id)
-            except ObjectDoesNotExist:
-                pass
-            if not author:
-                result = get_user_model().objects.get_or_create(email=user.email)
-                author = result[0]
-                if result[1]:
-                    author.username = user.nikename + '_' + str(user.openid)
-                    author.save()
+        # facebook的token过长
+        if type == 'facebook':
+            user.token = ''
+        if user.email:
+            with transaction.atomic():
+                author = None
+                try:
+                    author = get_user_model().objects.get(id=user.author_id)
+                except ObjectDoesNotExist:
+                    pass
+                if not author:
+                    result = get_user_model().objects.get_or_create(email=user.email)
+                    author = result[0]
+                    if result[1]:
+                        try:
+                            get_user_model().objects.get(username=user.nickname)
+                        except ObjectDoesNotExist:
+                            author.username = user.nickname
+                        else:
+                            author.username = "djangoblog" + timezone.now().strftime('%y%m%d%I%M%S')
+                        author.source = 'authorize'
+                        author.save()
 
-            user.author = author
-            user.save()
-            login(request, author)
-            return HttpResponseRedirect(nexturl)
-        if not email:
-            # todo
-            # 未避免用户名重复，暂时使用oauth用户名+openid这种方式来创建用户
-            # author = get_user_model().objects.get_or_create(username=user.nikename + '_' + str(user.openid))[0]
-            # user.author = author
-            user.save()
+                user.author = author
+                user.save()
 
+                oauth_user_login_signal.send(
+                    sender=authorize.__class__, id=user.id)
+                login(request, author)
+                # 设置session过期时间为2周（默认）
+                request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+                # 设置登录标记 cookie
+                response = HttpResponseRedirect(nexturl)
+                response.set_cookie(
+                    'logged_user',
+                    'true',
+                    max_age=settings.SESSION_COOKIE_AGE,
+                    httponly=False,  # 允许 JavaScript 访问
+                    samesite='Lax'
+                )
+                return response
+        else:
+            user.save()
             url = reverse('oauth:require_email', kwargs={
                 'oauthid': user.id
             })
@@ -98,43 +143,58 @@ def authorize(request):
 def emailconfirm(request, id, sign):
     if not sign:
         return HttpResponseForbidden()
-    if not get_md5(settings.SECRET_KEY + str(id) + settings.SECRET_KEY).upper() == sign.upper():
+    if not get_sha256(settings.SECRET_KEY +
+                      str(id) +
+                      settings.SECRET_KEY).upper() == sign.upper():
         return HttpResponseForbidden()
     oauthuser = get_object_or_404(OAuthUser, pk=id)
-    author = None
-    if oauthuser.author:
-        author = get_user_model().objects.get(pk=oauthuser.author_id)
-    else:
-        result = get_user_model().objects.get_or_create(email=oauthuser.email)
-        author = result[0]
-        if result[1]:
-            author.username = oauthuser.nikename + '_' + str(oauthuser.openid)
-            author.save()
-    """
-    if oauthuser.email and author.email:
-        login(request, author)
-        return HttpResponseRedirect('/')
-    """
-    oauthuser.author = author
-    oauthuser.save()
+    with transaction.atomic():
+        if oauthuser.author:
+            author = get_user_model().objects.get(pk=oauthuser.author_id)
+        else:
+            result = get_user_model().objects.get_or_create(email=oauthuser.email)
+            author = result[0]
+            if result[1]:
+                author.source = 'emailconfirm'
+                author.username = oauthuser.nickname.strip() if oauthuser.nickname.strip(
+                ) else "djangoblog" + timezone.now().strftime('%y%m%d%I%M%S')
+                author.save()
+        oauthuser.author = author
+        oauthuser.save()
+    oauth_user_login_signal.send(
+        sender=emailconfirm.__class__,
+        id=oauthuser.id)
     login(request, author)
+    # 设置session过期时间为2周（默认）
+    request.session.set_expiry(settings.SESSION_COOKIE_AGE)
 
-    site = Site.objects.get_current().domain
-    send_email('恭喜您绑定成功!', '''
-     <p>恭喜您，您已经成功绑定您的邮箱，您可以使用{type}来直接免密码登录本网站.欢迎您继续关注本站，地址是</p>
+    site = 'http://' + get_current_site().domain
+    content = _('''
+     <p>Congratulations, you have successfully bound your email address. You can use
+      %(oauthuser_type)s to directly log in to this website without a password.</p>
+       You are welcome to continue to follow this site, the address is
+        <a href="%(site)s" rel="bookmark">%(site)s</a>
+            Thank you again!
+            <br />
+        If the link above cannot be opened, please copy this link to your browser.
+        %(site)s
+    ''') % {'oauthuser_type': oauthuser.type, 'site': site}
 
-                <a href="{url}" rel="bookmark">{url}</a>
-
-                再次感谢您！
-                <br />
-                如果上面链接无法打开，请将此链接复制至浏览器。
-                {url}
-    '''.format(type=oauthuser.type, url='http://' + site), [oauthuser.email, ])
+    send_email(emailto=[oauthuser.email, ], title=_('Congratulations on your successful binding!'), content=content)
     url = reverse('oauth:bindsuccess', kwargs={
         'oauthid': id
     })
     url = url + '?type=success'
-    return HttpResponseRedirect(url)
+    # 设置登录标记 cookie
+    response = HttpResponseRedirect(url)
+    response.set_cookie(
+        'logged_user',
+        'true',
+        max_age=settings.SESSION_COOKIE_AGE,
+        httponly=False,  # 允许 JavaScript 访问
+        samesite='Lax'
+    )
+    return response
 
 
 class RequireEmailView(FormView):
@@ -170,8 +230,9 @@ class RequireEmailView(FormView):
         oauthuser = get_object_or_404(OAuthUser, pk=oauthid)
         oauthuser.email = email
         oauthuser.save()
-        sign = get_md5(settings.SECRET_KEY + str(oauthuser.id) + settings.SECRET_KEY)
-        site = Site.objects.get_current().domain
+        sign = get_sha256(settings.SECRET_KEY +
+                          str(oauthuser.id) + settings.SECRET_KEY)
+        site = get_current_site().domain
         if settings.DEBUG:
             site = '127.0.0.1:8000'
         path = reverse('oauth:email_confirm', kwargs={
@@ -180,17 +241,18 @@ class RequireEmailView(FormView):
         })
         url = "http://{site}{path}".format(site=site, path=path)
 
-        content = """
-                <p>请点击下面链接绑定您的邮箱</p>
+        content = _("""
+               <p>Please click the link below to bind your email</p>
 
-                <a href="{url}" rel="bookmark">{url}</a>
+                 <a href="%(url)s" rel="bookmark">%(url)s</a>
 
-                再次感谢您！
-                <br />
-                如果上面链接无法打开，请将此链接复制至浏览器。
-                {url}
-                """.format(url=url)
-        send_email('绑定您的电子邮箱', content, [email, ])
+                 Thank you again!
+                 <br />
+                 If the link above cannot be opened, please copy this link to your browser.
+                  <br />
+                 %(url)s
+                """) % {'url': url}
+        send_email(emailto=[email, ], title=_('Bind your email'), content=content)
         url = reverse('oauth:bindsuccess', kwargs={
             'oauthid': oauthid
         })
@@ -200,16 +262,18 @@ class RequireEmailView(FormView):
 
 def bindsuccess(request, oauthid):
     type = request.GET.get('type', None)
-
-    title = ''
-    content = ''
     oauthuser = get_object_or_404(OAuthUser, pk=oauthid)
     if type == 'email':
-        title = '绑定成功'
-        content = "恭喜您，还差一步就绑定成功了，请登录您的邮箱查看邮件完成绑定，谢谢。"
+        title = _('Bind your email')
+        content = _(
+            'Congratulations, the binding is just one step away. '
+            'Please log in to your email to check the email to complete the binding. Thank you.')
     else:
-        title = '绑定成功'
-        content = "恭喜您绑定成功，您以后可以使用{type}来直接免密码登录本站啦，感谢您对本站对关注。".format(type=oauthuser.type)
+        title = _('Binding successful')
+        content = _(
+            "Congratulations, you have successfully bound your email address. You can use %(oauthuser_type)s"
+            " to directly log in to this website without a password. You are welcome to continue to follow this site." % {
+                'oauthuser_type': oauthuser.type})
     return render(request, 'oauth/bindsuccess.html', {
         'title': title,
         'content': content

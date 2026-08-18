@@ -1,38 +1,45 @@
-<section id="comments" class="themeform">
-    {% load blog_tags %}
-    {% load comments_tags %}
-    {% comment %}<h3 class="heading">{{ comment_count }} 条回复</h3>{% endcomment %}
+<dev>
+    <section id="comments" class="themeform">
+        {% load blog_tags %}
+        {% load comments_tags %}
+        {% load cache %}
 
-    <ul class="comment-tabs group">
-        <li class="active"><a href="#commentlist-container"><i
-                class="fa fa-comments-o"></i>评论<span>{{ comment_count }}</span></a></li>
-        {% comment %}<li class=""><a href="#pinglist-container"><i class="fa fa-share"></i>引用<span>0</span></a></li>{% endcomment %}
-    </ul>
-    {% if article_comments %}
-        <div id="commentlist-container" class="comment-tab" style="display: block;">
+        <ul class="comment-tabs group">
+            <li class="active"><a href="#commentlist-container"><i
+                    class="fa fa-comments-o"></i>评论<span>{{ comment_count }}</span></a></li>
 
-            <ol class="commentlist">
-                {% query article_comments parent_comment=None as parent_comments %}
-                {% for comment in parent_comments %}
-                    {% show_comment_item comment False %}
+        </ul>
+        {% if article_comments %}
+            <div id="commentlist-container" class="comment-tab block">
+                <ol class="commentlist">
+                    {#                    {% query article_comments parent_comment=None as parent_comments %}#}
+                    {% for comment_item in p_comments %}
 
-                    {% parse_commenttree article_comments comment as childcomments %}
-                    {% if childcomments %}
-                        <ul class="children">
-                            {% for child in childcomments %}
-                                {% show_comment_item child True %}
+                        {% with 0 as depth %}
+                            {% include "comments/tags/comment_item_tree.html" %}
+                        {% endwith %}
+                    {% endfor %}
 
-                            {% endfor %}
-                        </ul><!-- .children -->
-                    {% endif %}
+                </ol><!--/.commentlist-->
+                <div class="navigation">
+                    <nav class="nav-single">
+                        {% if comment_prev_page_url %}
+                            <div class="nav-previous">
+                        <span><a href="{{ comment_prev_page_url }}" rel="prev"><span
+                                class="meta-nav">←</span> 上一页</a></span>
+                            </div>
+                        {% endif %}
+                        {% if comment_next_page_url %}
+                            <div class="nav-next">
+                        <span><a href="{{ comment_next_page_url }}" rel="next">下一页 <span
+                                class="meta-nav">→</span></a></span>
+                            </div>
+                        {% endif %}
+                    </nav>
+                </div>
+                <br/>
+            </div>
+        {% endif %}
+    </section>
 
-
-                {% endfor %}
-
-            </ol><!--/.commentlist-->
-
-
-        </div>
-
-    {% endif %}
-</section>
+</dev>

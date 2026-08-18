@@ -1,89 +1,201 @@
 # DjangoBlog
 
-基于`python3.5`和`Django1.10`的博客。   
+<p align="center">
+  <a href="https://github.com/liangliangyy/DjangoBlog/actions/workflows/django.yml"><img src="https://github.com/liangliangyy/DjangoBlog/actions/workflows/django.yml/badge.svg" alt="Django CI"></a>
+  <a href="https://github.com/liangliangyy/DjangoBlog/actions/workflows/frontend.yml"><img src="https://github.com/liangliangyy/DjangoBlog/actions/workflows/frontend.yml/badge.svg" alt="Frontend CI"></a>
+  <a href="https://github.com/liangliangyy/DjangoBlog/actions/workflows/codeql-analysis.yml"><img src="https://github.com/liangliangyy/DjangoBlog/actions/workflows/codeql-analysis.yml/badge.svg" alt="CodeQL"></a>
+ <a href="https://codecov.io/gh/liangliangyy/DjangoBlog" > 
+ <img src="https://codecov.io/gh/liangliangyy/DjangoBlog/branch/master/graph/badge.svg?token=vmnMtzuFqN"/></a> <a href="https://github.com/liangliangyy/DjangoBlog/blob/master/LICENSE"><img src="https://img.shields.io/github/license/liangliangyy/djangoblog.svg" alt="license"></a>
+</p>
 
-[![Build Status](https://travis-ci.org/liangliangyy/DjangoBlog.svg?branch=master)](https://travis-ci.org/liangliangyy/DjangoBlog) [![Coverage Status](https://coveralls.io/repos/github/liangliangyy/DjangoBlog/badge.svg?branch=master)](https://coveralls.io/github/liangliangyy/DjangoBlog?branch=master) [![Requirements Status](https://requires.io/github/liangliangyy/DjangoBlog/requirements.svg?branch=master)](https://requires.io/github/liangliangyy/DjangoBlog/requirements/?branch=master)  [![license](https://img.shields.io/github/license/liangliangyy/djangoblog.svg)]() [![GitHub release](https://img.shields.io/github/release/liangliangyy/djangoblog.svg)]() [![python3.5](https://img.shields.io/badge/python-3.5-brightgreen.svg)]() [![django1.10](https://img.shields.io/badge/django-1.10-brightgreen.svg)]()     
+<p align="center">
+  <b>一款功能强大、设计优雅的现代化博客系统</b>
+  <br>
+  <a href="/docs/README-en.md">English</a> • <b>简体中文</b>
+</p>
 
-## 主要功能：
-- 文章，页面，分类目录，标签的添加，删除，编辑等。文章及页面支持`Markdown`，支持代码高亮。
-- 支持文章全文搜索。
-- 完整的评论功能，包括发表回复评论，以及评论的邮件提醒，支持`Markdown`。
-- 侧边栏功能，最新文章，最多阅读，标签云等。
-- 支持Oauth登陆，现已有Google,GitHub,微博登录。
-- 支持`Memcache`缓存，支持缓存自动刷新。
-- 简单的SEO功能，新建文章等会自动通知Google和百度。
-- 集成了简单的图床功能。
-- 集成`django-compressor`，自动压缩`css`，`js`。
-- 基于`python3`,支持`Django`多版本。`Django`的1.8,1.9,1.10,1.11均测试通过。
-- 网站异常邮件提醒，若有未捕捉到的异常会自动发送提醒邮件。
+---
 
-## 安装
-使用pip安装：  
-`pip install -r requirements.txt`
+DjangoBlog 是一款基于 Python 3.10+ 和 Django 5.2 构建的高性能博客平台。它不仅提供了传统博客的所有核心功能，还通过一个灵活的插件系统，让您可以轻松扩展和定制您的网站。无论您是个人博主、技术爱好者还是内容创作者，DjangoBlog 都旨在为您提供一个稳定、高效且易于维护的写作和发布环境。
 
-如果你没有pip，使用如下方式安装：    
-OS X / Linux 电脑，终端下执行:  
+## ✨ 特性亮点
 
-    curl http://peak.telecommunity.com/dist/ez_setup.py | python
-    curl https://raw.github.com/pypa/pip/master/contrib/get-pip.py | python
+- **强大的内容管理**: 支持文章、独立页面、分类和标签的完整管理。内置强大的 Markdown 编辑器，支持代码语法高亮。
+- **全文搜索**: 集成 Elasticsearch/Whoosh 搜索引擎，提供快速、精准的文章内容搜索，支持关键词高亮显示。
+- **互动评论系统**: 支持回复、邮件提醒等功能，评论内容同样支持 Markdown。现代化评论界面，支持无限嵌套回复。
+- **灵活的侧边栏**: 可自定义展示最新文章、最多阅读、标签云等模块。
+- **社交化登录**: 内置 OAuth 支持，已集成 Google, GitHub, Facebook, 微博, QQ 等主流平台。
+- **黑夜模式**: 支持浅色/深色主题自动切换，可跟随系统设置，提供舒适的阅读体验。
+- **现代化前端**: 基于 Alpine.js + Tailwind CSS + HTMX 构建，提供 SPA 般的无刷新浏览体验，支持 HTML-over-the-wire 架构。
+- **高性能缓存**: 原生支持 Redis 缓存，并提供自动刷新机制，确保网站高速响应。
+- **SEO 友好**: 具备基础 SEO 功能，新内容发布后可自动通知 Google 和百度。
+- **便捷的插件系统**: 通过创建独立的插件来扩展博客功能，代码解耦，易于维护。已内置 9 个实用插件，包括浏览计数、SEO 优化、文章推荐、图片懒加载等功能！
+- **集成图床**: 内置简单的图床功能，方便图片上传和管理。
+- **自动化构建**: 使用 Vite 构建前端资源，支持热更新和自动压缩优化。
+- **健壮的运维**: 内置网站异常邮件提醒和微信公众号管理功能。
 
-windows电脑：  
- 下载 http://peak.telecommunity.com/dist/ez_setup.py 和 https://raw.github.com/pypa/pip/master/contrib/get-pip.py 这两个文件，双击运行。  
+## 🛠️ 技术栈
 
-### 配置
-配置都是在`setting.py`中.
+- **后端**: Python 3.10+, Django 5.2
+- **数据库**: MySQL, SQLite (可配置)
+- **缓存**: Redis, LocalMem (可配置)
+- **前端**: Alpine.js 3.13, Tailwind CSS 3.4, HTMX 1.9, Vite 5.4
+- **搜索**: Whoosh, Elasticsearch (可配置)
+- **编辑器**: Markdown (mdeditor)
 
-很多`setting`配置我都是写在环境变量里面的.并没有提交到`github`中来.例如`SECRET_KEY`,`OAHUTH`,`mysql`以及邮件部分的配置等.你可以直接修改代码成你自己的,或者在环境变量里面加入对应的配置就可以了.
+## 🚀 快速开始
 
-`test`目录中的文件都是为了`travis`自动化测试使用的.不用去关注.或者直接使用.这样就可以集成`travis`自动化测试了.
+### 1. 环境准备
 
-`bin`目录是在`linux`环境中使用`Nginx`+`Gunicorn`+`virtualenv`+`supervisor`来部署的脚本和`Nginx`配置文件.可以参考我的文章:
+确保您的系统中已安装 Python 3.10+ 和 MySQL/MariaDB。
 
->[使用Nginx+Gunicorn+virtualenv+supervisor来部署django项目](https://www.lylinux.org/%E4%BD%BF%E7%94%A8nginxgunicornvirtualenvsupervisor%E6%9D%A5%E9%83%A8%E7%BD%B2django%E9%A1%B9%E7%9B%AE.html)
+### 2. 克隆与安装
 
-有详细的部署介绍.
+```bash
+# 克隆项目到本地
+git clone https://github.com/liangliangyy/DjangoBlog.git
+cd DjangoBlog
 
-## 运行
+# 安装依赖
+pip install -r requirements.txt
+```
 
- 修改`DjangoBlog/setting.py` 修改数据库配置，如下所示：
+### 3. 项目配置
 
-     DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': 'djangoblog',
-            'USER': 'root',
-            'PASSWORD': 'password',
-            'HOST': 'host',
-            'PORT': 3306,
-        }
-    }
+- **数据库**:
+  打开 `djangoblog/settings.py` 文件，找到 `DATABASES` 配置项，修改为您的 MySQL 连接信息。
 
-### 创建数据库
+  ```python
+  DATABASES = {
+      'default': {
+          'ENGINE': 'django.db.backends.mysql',
+          'NAME': 'djangoblog',
+          'USER': 'root',
+          'PASSWORD': 'your_password',
+          'HOST': '127.0.0.1',
+          'PORT': 3306,
+      }
+  }
+  ```
+  在 MySQL 中创建数据库:
+  ```sql
+  CREATE DATABASE `djangoblog` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+  ```
 
- 终端下执行:  
+- **更多配置**:
+  关于邮件发送、OAuth 登录、缓存等更多高级配置，请参阅我们的 [详细配置文档](/docs/config.md)。
 
-    ./manage.py makemigrations
-    ./manage.py migrate  
-### 创建超级用户
+### 4. 初始化数据库
 
- 终端下执行:  
+```bash
+python manage.py makemigrations
+python manage.py migrate
 
-    ./manage.py createsuperuser
-### 创建测试数据
-终端下执行:  
+# 创建一个超级管理员账户
+python manage.py createsuperuser
+```
 
-    ./manage.py create_testdata
+### 5. 构建前端资源
 
-### 开始运行：
- 执行：  
- `./manage.py runserver`
+```bash
+# 进入前端目录
+cd frontend
 
+# 安装依赖（首次运行需要）
+npm install
 
+# 构建生产环境资源
+npm run build
 
+# 返回项目根目录
+cd ..
+```
 
+### 6. 运行项目
 
- 浏览器打开: http://127.0.0.1:8000/  就可以看到效果了。  
+```bash
+# (可选) 生成一些测试数据
+python manage.py create_testdata
 
- ## 问题相关
+# 收集静态文件
+python manage.py collectstatic --noinput
 
- 有任何问题欢迎提Issue,或者将问题描述发送至我邮箱 `liangliangyy#gmail.com`.我会尽快解答.推荐提交Issue方式.
+# (可选) 压缩静态文件
+python manage.py compress --force
+
+# 启动开发服务器
+python manage.py runserver
+```
+
+现在，在您的浏览器中访问 `http://127.0.0.1:8000/`，您应该能看到 DjangoBlog 的首页了！
+
+### 开发模式
+
+如果您需要开发前端代码，可以使用 Vite 的热更新功能：
+
+```bash
+# 在 frontend 目录下启动开发服务器
+cd frontend
+npm run dev
+```
+
+这将启动 Vite 开发服务器，修改前端代码后会自动重新构建。
+
+## 部署
+
+- **传统部署**: 我们为您准备了非常详细的 [服务器部署教程](https://www.lylinux.net/article/2019/8/5/58.html)。
+- **Docker 部署**: 项目已全面支持 Docker。如果您熟悉容器化技术，请参考 [Docker 部署文档](/docs/docker.md) 来快速启动。
+- **Kubernetes 部署**: 我们也提供了完整的 [Kubernetes 部署指南](/docs/k8s.md)，助您轻松上云。
+
+## 🧩 插件系统
+
+插件系统是 DjangoBlog 的核心特色之一。它允许您在不修改核心代码的情况下，通过编写独立的插件来为您的博客添加新功能。
+
+- **工作原理**: 插件通过在预定义的"钩子"上注册回调函数来工作。例如，当一篇文章被渲染时，`after_article_body_get` 钩子会被触发，所有注册到此钩子的函数都会被执行。
+
+- **现有插件**: 项目已内置以下实用插件
+  - `view_count` - 文章浏览计数统计
+  - `seo_optimizer` - SEO 优化增强
+  - `article_copyright` - 文章版权声明（现代化样式）
+  - `article_recommendation` - 智能文章推荐（响应式卡片布局）
+  - `external_links` - 外部链接处理（自动添加图标）
+  - `image_lazy_loading` - 图片懒加载优化（淡入动画）
+  - `reading_time` - 文章阅读时间估算
+  - `cloudflare_cache` - Cloudflare 缓存管理
+
+- **开发您自己的插件**: 只需在 `plugins` 目录下创建一个新的文件夹，并编写您的 `plugin.py`。欢迎探索并为 DjangoBlog 社区贡献您的创意！
+
+## 🤝 贡献指南
+
+我们热烈欢迎任何形式的贡献！如果您有好的想法或发现了 Bug，请随时提交 Issue 或 Pull Request。
+
+## 📄 许可证
+
+本项目基于 [MIT License](LICENSE) 开源。
+
+---
+
+## ❤️ 支持与赞助
+
+如果您觉得这个项目对您有帮助，并且希望支持我继续维护和开发新功能，欢迎请我喝杯咖啡！您的每一份支持都是我前进的最大动力。
+
+<p align="center">
+  <img src="/docs/imgs/alipay.jpg" width="150" alt="支付宝赞助">
+  <img src="/docs/imgs/wechat.jpg" width="150" alt="微信赞助">
+</p>
+<p align="center">
+  <i>(左) 支付宝 / (右) 微信</i>
+</p>
+
+## 🙏 鸣谢
+
+特别感谢 **JetBrains** 为本项目提供的免费开源许可证。
+
+<p align="center">
+  <a href="https://www.jetbrains.com/?from=DjangoBlog">
+    <img src="/docs/imgs/pycharm_logo.png" width="150" alt="JetBrains Logo">
+  </a>
+</p>
+
+---
+> 如果本项目帮助到了你，请在[这里](https://github.com/liangliangyy/DjangoBlog/issues/214)留下你的网址，让更多的人看到。您的回复将会是我继续更新维护下去的动力。

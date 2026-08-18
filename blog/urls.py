@@ -1,50 +1,62 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
-
-"""
-@version: ??
-@author: liangliangyy
-@license: MIT Licence
-@contact: liangliangyy@gmail.com
-@site: https://www.lylinux.org/
-@software: PyCharm
-@file: urls.py
-@time: 2016/11/2 下午7:15
-"""
-
-from django.conf.urls import url
+from django.urls import path
 from django.views.decorators.cache import cache_page
+
 from . import views
-from haystack.forms import ModelSearchForm
-from haystack.query import SearchQuerySet
-from haystack.views import SearchView
 
+app_name = "blog"
 urlpatterns = [
-    url(r'^$', views.IndexView.as_view(), name='index'),
-    url(r'^page/(?P<page>\d+)$', views.IndexView.as_view(), name='index_page'),
-
-    url(r'^article/(?P<year>\d+)/(?P<month>\d+)/(?P<day>\d+)/(?P<article_id>\d+).html$',
+    path(
+        r'',
+        views.IndexView.as_view(),
+        name='index'),
+    path(
+        r'page/<int:page>/',
+        views.IndexView.as_view(),
+        name='index_page'),
+    path(
+        r'article/<int:year>/<int:month>/<int:day>/<int:article_id>.html',
         views.ArticleDetailView.as_view(),
         name='detailbyid'),
-
-    url(r'^blogpage/(?P<year>\d+)/(?P<month>\d+)/(?P<day>\d+)/(?P<page_id>\d+)-(?P<slug>[\w-]+).html$',
-        views.ArticleDetailView.as_view(),
-        name='pagedetail'),
-
-    url(r'^category/(?P<category_name>[\w-]+).html$', views.CategoryDetailView.as_view(), name='category_detail'),
-    url(r'^category/(?P<category_name>[\w-]+)/(?P<page>\d+).html$', views.CategoryDetailView.as_view(),
+    path(
+        r'category/<slug:category_name>.html',
+        views.CategoryDetailView.as_view(),
+        name='category_detail'),
+    path(
+        r'category/<slug:category_name>/<int:page>.html',
+        views.CategoryDetailView.as_view(),
         name='category_detail_page'),
-    # url(r'^category/(?P<category_name>[\w-]+)/(?P<page>\d+).html$', views.CategoryDetailView.as_view(),
-    #   name='category_detail'),
-
-    url(r'^author/(?P<author_name>\w+).html$', views.AuthorDetailView.as_view(), name='author_detail'),
-    url(r'^author/(?P<author_name>\w+)/(?P<page>\d+).html$', views.AuthorDetailView.as_view(),
+    path(
+        r'author/<author_name>.html',
+        views.AuthorDetailView.as_view(),
+        name='author_detail'),
+    path(
+        r'author/<author_name>/<int:page>.html',
+        views.AuthorDetailView.as_view(),
         name='author_detail_page'),
-
-    url(r'^tag/(?P<tag_name>.+).html$', views.TagDetailView.as_view(), name='tag_detail'),
-    url(r'^tag/(?P<tag_name>.+)/(?P<page>\d+).html$', views.TagDetailView.as_view(), name='tag_detail_page'),
-
-    url(r'^upload', views.fileupload, name='upload'),
-    url(r'^refresh', views.refresh_memcache, name='refresh')
+    path(
+        r'tag/<slug:tag_name>.html',
+        views.TagDetailView.as_view(),
+        name='tag_detail'),
+    path(
+        r'tag/<slug:tag_name>/<int:page>.html',
+        views.TagDetailView.as_view(),
+        name='tag_detail_page'),
+    path(
+        'archives.html',
+        cache_page(
+            60 * 60)(
+            views.ArchivesView.as_view()),
+        name='archives'),
+    path(
+        'links.html',
+        views.LinkListView.as_view(),
+        name='links'),
+    path(
+        r'upload',
+        views.fileupload,
+        name='upload'),
+    path(
+        r'clean',
+        views.clean_cache_view,
+        name='clean'),
 ]
